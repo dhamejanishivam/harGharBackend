@@ -7,6 +7,7 @@ import os
 from werkzeug.utils import secure_filename
 import uuid # Import uuid for unique IDs
 
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -22,7 +23,6 @@ curl -X POST https://grx6djfl-5000.inc1.devtunnels.ms/login \
 
 
 """
-
 
 
 
