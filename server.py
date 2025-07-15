@@ -24,8 +24,6 @@ curl -X POST https://grx6djfl-5000.inc1.devtunnels.ms/login \
 """
 
 
-
-
 class Database:
     def __init__(self, host="localhost", user="root", password="", database="project"):
         self.host = host
