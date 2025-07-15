@@ -6,6 +6,8 @@ import uuid # Import uuid for unique IDs
 import os
 from werkzeug.utils import secure_filename
 import uuid # Import uuid for unique IDs
+import datetime # Add this import at the top of your file
+
 
 
 UPLOAD_FOLDER = "uploads"
@@ -16,12 +18,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 """
-
 curl -X POST https://grx6djfl-5000.inc1.devtunnels.ms/login \
 -H "Content-Type: application/json" \
 -d '{"username": "CGPV001", "password": "hgm@2025"}'
-
-
 """
 
 
@@ -51,6 +50,8 @@ class Database:
         except mysql.connector.Error as err:
             print(f"[DB ERROR] {err}")
 
+
+
     def execute(self, query, params=None):
         try:
             self.cursor.execute(query, params)
@@ -59,6 +60,7 @@ class Database:
         except mysql.connector.Error as err:
             print(f"[QUERY ERROR] {err}")
             return None
+
 
     def fetchall(self):
         return self.cursor.fetchall()
@@ -90,6 +92,70 @@ users={
 @app.route('/')
 def homepage():
     return '<body style=background-color:black;color:white;display:flex;align-items:center;justify-content:center;font-size:40px;>WORKING'
+
+
+
+
+
+@app.route('/search', methods=['GET'])
+def search_families():
+    db = Database(database="project") 
+    
+    search_query = request.args.get('query', '').strip()
+    
+    print(f"\n--- DEBUGGING SEARCH ---")
+    print(f"Received query: '{search_query}'")
+
+    query = """
+        SELECT
+            id,
+            name AS childName,
+            guardian_name AS parentName, 
+            username AS mobileNumber,
+            address AS village,
+            -- DATE_FORMAT(created_at, '%d/%m/%Y') AS registrationDate, -- REMOVED THIS LINE
+            (plant_photo IS NOT NULL) AS plantDistributed
+        FROM
+            students
+        WHERE 1=1
+    """
+    params = []
+
+    if search_query:
+        search_pattern = f"%{search_query}%"
+        query += """
+            AND (
+                name LIKE %s OR
+                username LIKE %s
+            )
+        """
+        params.extend([search_pattern, search_pattern])
+
+
+    try:
+        db.execute(query, tuple(params))
+        students = db.fetchall()
+        
+
+        formatted_students = []
+        for student in students:
+            student['plantDistributed'] = bool(student['plantDistributed'])
+            formatted_students.append(student)
+        
+        print("[INFO] Result for searched fetched succesfully")
+        return jsonify(formatted_students), 200
+
+    except Exception as e:
+        print(f"[SEARCH ERROR] {e}")
+        return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
+    finally:
+        db.close()
+
+
+
+
+
+
 
 @app.route('/data', methods=['GET'])
 def show_all_students():
@@ -127,8 +193,6 @@ def show_all_students():
     """
 
     return Response(html, mimetype='text/html')
-
-
 
 
 
@@ -192,6 +256,7 @@ def register():
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
+
         values = (
             username, name, password, guardian_name, father_name, mother_name,
             int(age), # Convert to int
@@ -205,7 +270,6 @@ def register():
             address,
             totalImagesYet
         )
-
         db.execute(query, values)
         return jsonify({'success': True, 'msg': 'Student registered successfully'}), 201
 
