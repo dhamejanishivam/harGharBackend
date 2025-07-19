@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import mysql.connector
 from flask import Response
@@ -11,12 +11,26 @@ import model
 from datetime import datetime # Import datetime specifically
 
 
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Point Flask's static folder to your UPLOAD_FOLDER
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True) # Ensure the folder exists
 
+# app = Flask(__name__, static_folder=UPLOAD_FOLDER) # <--- THIS IS THE KEY CHANGE
+app = Flask(__name__, static_folder=UPLOAD_FOLDER, static_url_path='/static')
+CORS(app)
+
+# ... (your existing app.config for SERVER_NAME and PREFERRED_URL_SCHEME)
+app.config['SERVER_NAME'] = 'grx6djfl-5001.inc1.devtunnels.ms'
+app.config['PREFERRED_URL_SCHEME'] = 'https'
+
+
+
+# 9479081482 user
 
 # https://grx6djfl-5000.inc1.devtunnels.ms/
 # https://grx6djfl-5001.inc1.devtunnels.ms/
+
+
 
 
 """
@@ -25,6 +39,9 @@ curl -X POST https://grx6djfl-5001.inc1.devtunnels.ms/login \
 -d '{"username": "CGAB001", "password": "hgm@2025"}'
 """
 
+"""
+Anganwadi worker = username,password : 9479082161
+"""
 
 class ImagePredict:
     def __init__(self):
@@ -85,8 +102,6 @@ class Database:
         print("[DB] Connection closed")
 
 
-app = Flask(__name__)
-CORS(app)
 
 
 """
@@ -110,6 +125,14 @@ def homepage():
     return '<body style=background-color:black;color:white;display:flex;align-items:center;justify-content:center;font-size:40px;>WORKING'
 
 
+@app.route('/test-image/<filename>')
+def test_image(filename):
+    print(f"[DEBUG] Request to /test-image/{filename}. Attempting to serve from: {UPLOAD_FOLDER}")
+    try:
+        return send_from_directory(UPLOAD_FOLDER, filename)
+    except Exception as e:
+        print(f"[ERROR] Failed to serve {filename} from {UPLOAD_FOLDER}: {e}") # More detailed error
+        return jsonify({'error': 'File not found or access issue', 'details': str(e)}), 404
 
 @app.route('/search2')
 def search2Results():
@@ -156,38 +179,29 @@ def search2Results():
 
 
 
-
 @app.route('/families/user/<string:user_id>', methods=['GET'])
 def get_family_by_user_id(user_id):
-    """
-    Fetches student/family data based on the provided username (which is user_id here).
-    This endpoint corresponds to apiService.getFamilyByUserId in the frontend.
-    """
-    db = Database(database="project") # Get a new DB connection for this request
+    db = Database(database="project")
     try:
-        # Assuming 'user_id' from the URL maps directly to the 'username' column in your students table
         query = """
             SELECT
                 id,
                 username,
                 name AS childName,
-                guardian_name AS parentName, -- Or motherName/fatherName based on preference
+                guardian_name AS parentName,
                 mother_name AS motherName,
                 father_name AS fatherName,
-                -- Assuming username is used for mobileNumber
-                username AS mobileNumber, 
-                address AS village, -- 'address' is a combined field in your DB, mapped to village
+                mobile AS mobileNumber,
+                address AS village,
                 age,
                 dob AS dateOfBirth,
                 weight,
                 height,
-                aanganwadi_code AS anganwadiCode, -- Ensure consistency in naming
-                plant_photo, -- The stored path to the plant photo
-                pledge_photo, -- The stored path to the pledge photo
+                aanganwadi_code AS anganwadiCode,
+                plant_photo,
+                pledge_photo,
                 totalImagesYet,
-                -- You might also want to include centerName, workerName if available in 'students' or by joining
-                -- For now, just pulling directly from 'students' table
-                'active' as status -- Assuming all fetched families are active for now, or fetch from DB
+                health_status
             FROM
                 students
             WHERE
@@ -197,14 +211,15 @@ def get_family_by_user_id(user_id):
         family_data = db.fetchone()
 
         if family_data:
-            # Convert plant_photo and pledge_photo to full URLs if they exist
-            # Assumes your Flask app serves static files from the UPLOAD_FOLDER under /static/plant_photos
+            # Reconstruct the base URL to ensure it uses the external tunnel address
+            # This is already handled by SERVER_NAME if configured correctly, but good to be explicit
+            base_url = f"{app.config.get('PREFERRED_URL_SCHEME', 'http')}://{app.config['SERVER_NAME']}"
+
             if family_data.get('plant_photo'):
-                family_data['plant_photo'] = f"{request.url_root.strip('/')}{app.static_url_path}/{family_data['plant_photo']}"
+                family_data['plant_photo'] = f"{base_url}{app.static_url_path}/{family_data['plant_photo']}"
             if family_data.get('pledge_photo'):
-                family_data['pledge_photo'] = f"{request.url_root.strip('/')}{app.static_url_path}/{family_data['pledge_photo']}"
-            
-            # Ensure totalImagesYet is an integer (it usually comes as an int but good to be explicit)
+                family_data['pledge_photo'] = f"{base_url}{app.static_url_path}/{family_data['pledge_photo']}"
+
             family_data['totalImagesYet'] = int(family_data.get('totalImagesYet', 0))
 
             print(f"[INFO] Family data for user_id '{user_id}' fetched successfully.")
@@ -220,7 +235,66 @@ def get_family_by_user_id(user_id):
         print(f"[GET FAMILY BY USER ID ERROR] {e}")
         return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
     finally:
-        db.close() # Always close the DB connection
+        db.close()
+
+
+@app.route('/families/user1/<string:user_id>', methods=['GET'])
+def get_family_by_user_id1(user_id):
+    db = Database(database="project")
+    try:
+        query = """
+            SELECT
+                id,
+                username,
+                name AS childName,
+                guardian_name AS parentName,
+                mother_name AS motherName,
+                father_name AS fatherName,
+                mobile AS mobileNumber,
+                address AS village,
+                age,
+                dob AS dateOfBirth,
+                weight,
+                height,
+                aanganwadi_code AS anganwadiCode,
+                plant_photo,
+                pledge_photo,
+                totalImagesYet,
+                health_status
+            FROM
+                students
+            WHERE
+                id = %s
+        """
+        db.execute(query, (str(user_id),))
+        family_data = db.fetchone()
+
+        if family_data:
+            # Reconstruct the base URL to ensure it uses the external tunnel address
+            # This is already handled by SERVER_NAME if configured correctly, but good to be explicit
+            base_url = f"{app.config.get('PREFERRED_URL_SCHEME', 'http')}://{app.config['SERVER_NAME']}"
+
+            if family_data.get('plant_photo'):
+                family_data['plant_photo'] = f"{base_url}{app.static_url_path}/{family_data['plant_photo']}"
+            if family_data.get('pledge_photo'):
+                family_data['pledge_photo'] = f"{base_url}{app.static_url_path}/{family_data['pledge_photo']}"
+
+            family_data['totalImagesYet'] = int(family_data.get('totalImagesYet', 0))
+
+            print(f"[INFO] Family data for user_id '{user_id}' fetched successfully.")
+            return jsonify(family_data), 200
+        else:
+            print(f"[INFO] No family data found for user_id '{user_id}'.")
+            return jsonify({'message': 'Family data not found for this user.'}), 404
+
+    except mysql.connector.Error as db_err:
+        print(f"[GET FAMILY BY USER ID DB ERROR] {db_err}")
+        return jsonify({'error': 'Database error', 'message': str(db_err)}), 500
+    except Exception as e:
+        print(f"[GET FAMILY BY USER ID ERROR] {e}")
+        return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
+    finally:
+        db.close()
 
 
 
@@ -322,10 +396,10 @@ def registerAng():
 
 @app.route('/search', methods=['GET'])
 def search_families():
-    db = Database(database="project") 
-    
+    db = Database(database="project")
+
     search_query = request.args.get('query', '').strip()
-    
+
     print(f"\n--- DEBUGGING SEARCH ---")
     print(f"Received query: '{search_query}'")
 
@@ -333,10 +407,9 @@ def search_families():
         SELECT
             id,
             name AS childName,
-            guardian_name AS parentName, 
-            username AS mobileNumber,
+            guardian_name AS parentName,
+            mobile AS mobileNumber,  -- <--- CHANGE THIS LINE
             address AS village,
-            -- DATE_FORMAT(created_at, '%d/%m/%Y') AS registrationDate, -- REMOVED THIS LINE
             (plant_photo IS NOT NULL) AS plantDistributed
         FROM
             students
@@ -349,7 +422,7 @@ def search_families():
         query += """
             AND (
                 name LIKE %s OR
-                username LIKE %s
+                mobile LIKE %s  -- <--- CHANGE THIS LINE (if searching by mobile too)
             )
         """
         params.extend([search_pattern, search_pattern])
@@ -358,13 +431,13 @@ def search_families():
     try:
         db.execute(query, tuple(params))
         students = db.fetchall()
-        
+
 
         formatted_students = []
         for student in students:
             student['plantDistributed'] = bool(student['plantDistributed'])
             formatted_students.append(student)
-        
+
         print("[INFO] Result for searched fetched succesfully")
         return jsonify(formatted_students), 200
 
@@ -373,8 +446,6 @@ def search_families():
         return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
     finally:
         db.close()
-
-
 
 
 
@@ -539,15 +610,13 @@ def upload_plant_photo():
 
 
 
-
-
 @app.route('/register', methods=['POST'])
 def register():
     db = Database(database="project")
 
     try:
         # Get form fields from request.form - THIS REMAINS CORRECT FOR MULTIPART
-        username = request.form.get('username')
+        username = request.form.get('username') # This variable already holds the mobile number
         name = request.form.get('name')
         password = request.form.get('username') # STILL GETTING PLAINTEXT PASSWORD - CRITICAL!
         guardian_name = request.form.get('guardian_name')
@@ -561,14 +630,15 @@ def register():
         health_status = request.form.get('health_status')
 
         # Address parts (from frontend's FormData)
-        village = request.form.get('village', '')
-        ward = request.form.get('ward', '')
-        panchayat = request.form.get('panchayat', '')
-        district = request.form.get('district', '')
-        block = request.form.get('block', '')
-        # The frontend sends 'address' as one combined field, so use that.
-        # If you want to store these separately, update your DB schema and INSERT query.
         address = request.form.get('address', '') # Get combined address from frontend
+        # village = request.form.get('village', '') # These are likely already part of 'address' if frontend combines
+        # ward = request.form.get('ward', '')      # or can be omitted if not explicitly stored in separate columns
+        # panchayat = request.form.get('panchayat', '')
+        # district = request.form.get('district', '')
+        # block = request.form.get('block', '')
+
+        # REMOVE THIS LINE: mobile_number = request.form.get('mobileNumber', '')
+        # Instead, just use 'username' for the 'mobile' column below.
 
         # Handle files with unique names
         plant_file = request.files.get('plant_photo')
@@ -581,38 +651,38 @@ def register():
 
         if plant_file:
             original_filename = secure_filename(plant_file.filename)
-            # Generate a unique ID and combine with original extension
             unique_filename = str(uuid.uuid4()) + os.path.splitext(original_filename)[1]
             plant_file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
-            plant_filename = unique_filename # Store the unique filename/path in DB
+            plant_filename = unique_filename
 
         if pledge_file:
             original_filename = secure_filename(pledge_file.filename)
             unique_filename = str(uuid.uuid4()) + os.path.splitext(original_filename)[1]
             pledge_file.save(os.path.join(UPLOAD_FOLDER, unique_filename))
-            pledge_filename = unique_filename # Store the unique filename/path in DB
+            pledge_filename = unique_filename
 
         query = """
             INSERT INTO students (
                 username, name, password, guardian_name, father_name, mother_name,
                 age, dob, aanganwadi_code, weight, height, health_status,
-                plant_photo, pledge_photo, address,totalImagesYet
+                plant_photo, pledge_photo, address, totalImagesYet, mobile  
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) 
         """
 
         values = (
             username, name, password, guardian_name, father_name, mother_name,
-            int(age), # Convert to int
+            int(age),
             dob,
-            int(aanganwadi_code), # Convert to int
-            float(weight), # Convert to float
-            float(height), # Convert to float
+            int(aanganwadi_code),
+            float(weight),
+            float(height),
             health_status,
-            plant_filename, # This will now be the unique filename
-            pledge_filename, # This will now be the unique filename
+            plant_filename,
+            pledge_filename,
             address,
-            totalImagesYet
+            totalImagesYet,
+            username # <--- THIS IS THE FIX: Use 'username' for the 'mobile' column
         )
         db.execute(query, values)
         return jsonify({'success': True, 'msg': 'Student registered successfully'}), 201
@@ -621,8 +691,7 @@ def register():
         print("[REGISTER ERROR]", e)
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
-        db.close() # Ensure connection is closed
-
+        db.close()
 
 
 @app.route('/login', methods=['POST'])
@@ -630,14 +699,14 @@ def login():
     data = request.get_json()
     username = data.get('username')  # This is contact_number or user_id
     password = data.get('password')
-
+    print(f'========LOGIN: Login attempt with username: {username}, password: {password}')
     db = Database(database="project")
 
     # 1. Try users table
     user_query = "SELECT * FROM users WHERE contact_number = %s AND password_hash = %s"
     result = db.execute(user_query, (username, password))
     user = db.fetchone()
-
+    print(f"========DEBUG: Fetched user: {user}")
     if user:
         # Normalize role for frontend routing
         role = user.get("role", "").lower()
@@ -652,7 +721,9 @@ def login():
             "user": {
                 "name":user.get("name"),
                 "username": user.get("contact_number"),
-                "role": mapped_role
+                "role": mapped_role,
+                "aanganwaadi_id" : user.get("aanganwaadi_id"),
+                "address": user.get("gram")
             },
             "role": mapped_role
         }), 200
@@ -688,4 +759,4 @@ def login():
 
 
 if __name__ == '__main__':
-    app.run(debug=True,port=5001)
+    app.run(debug=True, host='0.0.0.0', port=5001)
