@@ -1,3 +1,5 @@
+# HARGHAR
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import mysql.connector
@@ -9,6 +11,8 @@ import uuid # Import uuid for unique IDs
 import datetime # Add this import at the top of your file
 import model
 from datetime import datetime # Import datetime specifically
+
+database_name='project' # Set your database name here
 
 
 # Point Flask's static folder to your UPLOAD_FOLDER
@@ -47,20 +51,40 @@ class ImagePredict:
     def __init__(self):
         self.aiObject = model.IMAGECLASSIFIER()
     def imagePredictor(self,image_path):
+        """
+        Predicts the class of the image using the AI model.
+
+          1 = MUNGA
+          0 = NOT MUNGA  
+        
+        """
+        lis = ["NOT MUNGA", "MUNGA"]
         result = self.aiObject.predict(image_path)
         classPredicted=result[0] # 1=Munga 0=NotMunga
         confidence=result[1]
-        return classPredicted,confidence
+        return lis[classPredicted],confidence
 
 class Database:
-    def __init__(self, host="localhost", user="root", password="", database="project"):
-        self.host = host
-        self.user = user
-        self.password = password
-        self.database = database
+    def __init__(self, host="localhost", user="root", password="", database="project", production=False):
+        if production:
+            database_name = "hgm"  # Use the production database name
+            self.host = '127.0.0.1'
+            self.user = 'root'
+            self.password = 'Ssipmt@2025DODB'
+            self.database = database_name
+            print("[DB Config] Using PRODUCTION database settings.")
+        else:
+            self.host = 'localhost'
+            self.user = 'root'
+            self.password = '' # IMPORTANT: Empty string for no password on your local MySQL root user
+            self.database = database_name
+            # print("[DB Config] Using LOCAL DEVELOPMENT database settings (no password).")
+        
         self.connection = None
         self.cursor = None
+        self._connected = False
         self.connect()
+
 
     def connect(self):
         try:
@@ -486,6 +510,43 @@ def show_all_students():
 
     return Response(html, mimetype='text/html')
 
+@app.route('/data1', methods=['GET'])
+def show_all_users():
+    db = Database(database="project")
+    result = db.execute("SELECT * FROM users")
+    users = db.fetchall()
+
+    table_headers = users[0].keys() if users else []
+    html = """
+    <html>
+    <head>
+        <title>All User Data</title>
+        <style>
+            body { background-color: #121212; color: #fff; font-family: sans-serif; padding: 20px; }
+            h1 { text-align: center; }
+            table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+            th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+            th { background-color: #1f1f1f; }
+            tr:nth-child(even) { background-color: #2a2a2a; }
+            tr:hover { background-color: #3a3a3a; }
+        </style>
+    </head>
+    <body>
+        <h1>All Registered Students</h1>
+        <table>
+            <tr>""" + "".join(f"<th>{col}</th>" for col in table_headers) + "</tr>"
+
+    for row in users:
+        html += "<tr>" + "".join(f"<td>{row[col]}</td>" for col in table_headers) + "</tr>"
+
+    html += """
+        </table>
+    </body>
+    </html>
+    """
+
+    return Response(html, mimetype='text/html')
+
 
 
 @app.route('/upload_plant_photo', methods=['POST'])
@@ -723,7 +784,8 @@ def login():
                 "username": user.get("contact_number"),
                 "role": mapped_role,
                 "aanganwaadi_id" : user.get("aanganwaadi_id"),
-                "address": user.get("gram")
+                "address": user.get("gram"),
+                "supervisor_name": user.get("supervisor_name")
             },
             "role": mapped_role
         }), 200
@@ -756,6 +818,65 @@ def login():
         "success": False,
         "message": "Invalid credentials"
     }), 401
+
+
+
+
+
+@app.route('/get_photo', methods=['POST'])
+def get_photo(): 
+    db = Database(database="project")
+    # name = request.form.get('name')
+    mobile = request.form.get('mobile')
+
+    query = "SELECT plant_photo FROM students WHERE mobile = '%s'"
+    db.execute(query, (mobile,))
+    result = db.fetchall()
+    print(result)
+    return jsonify(result)
+    if result and 'plant_photo' in result and result['plant_photo']:
+        photo_path = result['plant_photo']
+        return send_from_directory(UPLOAD_FOLDER, photo_path)
+        # return send_from_directory(UPLOAD_FOLDER, photo_path, as_attachment=True)
+
+    # This line is CRITICAL:
+    return jsonify({"error": "Photo not found or invalid request"}), 404
+
+
+
+
+
+@app.route('/check_photo_using_ai', methods=['POST'])
+def check_photo_using_ai():
+    if 'photo' not in request.files:
+        return jsonify({'message': 'No photo part in the request'}), 400
+    
+    photo = request.files['photo']
+    
+    if photo.filename == '':
+        return jsonify({'message': 'No selected photo file'}), 400
+
+    # Save the uploaded photo to a temporary location
+    temp_filename = secure_filename(photo.filename)
+    temp_filepath = os.path.join(UPLOAD_FOLDER, temp_filename)
+    photo.save(temp_filepath)
+
+    try:
+        image_predictor = ImagePredict()
+        class_predicted, confidence = image_predictor.imagePredictor(temp_filepath)
+
+        # Clean up the temporary file
+        os.remove(temp_filepath)
+
+        return jsonify({
+            'class_predicted': class_predicted,
+            'confidence': confidence
+        }), 200
+
+    except Exception as e:
+        print(f"[AI PREDICTION ERROR] {e}")
+        return jsonify({'error': 'Internal server error', 'message': str(e)}), 500
+
 
 
 if __name__ == '__main__':
