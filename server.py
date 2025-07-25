@@ -65,7 +65,7 @@ class ImagePredict:
         return lis[classPredicted],confidence
 
 class Database:
-    def __init__(self, host="localhost", user="root", password="", database="project", production=False):
+    def __init__(self, host="localhost", user="root", password="",  , production=False):
         if production:
             database_name = "hgm"  # Use the production database name
             self.host = '127.0.0.1'
@@ -160,7 +160,7 @@ def test_image(filename):
 
 @app.route('/search2')
 def search2Results():
-    db = Database(database="project")
+    db = Database() 
     try:
         # Query 1: Total entries in students table
         query_total_students = "SELECT COUNT(*) AS total_students FROM students"
@@ -205,7 +205,7 @@ def search2Results():
 
 @app.route('/families/user/<string:user_id>', methods=['GET'])
 def get_family_by_user_id(user_id):
-    db = Database(database="project")
+    db = Database() 
     try:
         query = """
             SELECT
@@ -264,7 +264,7 @@ def get_family_by_user_id(user_id):
 
 @app.route('/families/user1/<string:user_id>', methods=['GET'])
 def get_family_by_user_id1(user_id):
-    db = Database(database="project")
+    db = Database() 
     try:
         query = """
             SELECT
@@ -327,7 +327,7 @@ def get_family_by_user_id1(user_id):
 
 @app.route('/searchAng', methods=['GET'])
 def searchAng():
-    db = Database(database="project")
+    db = Database() 
     try:
         # Fetch all columns and all rows from the users table
         query = "SELECT id, name, contact_number, role, created_at, aanganwaadi_id, gram, block, tehsil, zila FROM users"
@@ -354,7 +354,7 @@ def searchAng():
 
 @app.route('/registerAng', methods=['POST'])
 def registerAng():
-    db = Database(database="project")
+    db = Database() 
     try:
         data = request.get_json()
 
@@ -420,7 +420,7 @@ def registerAng():
 
 @app.route('/search', methods=['GET'])
 def search_families():
-    db = Database(database="project")
+    db = Database() 
 
     search_query = request.args.get('query', '').strip()
 
@@ -475,7 +475,7 @@ def search_families():
 
 @app.route('/data', methods=['GET'])
 def show_all_students():
-    db = Database(database="project")
+    db = Database()
     result = db.execute("SELECT * FROM students")
     students = db.fetchall()
 
@@ -512,7 +512,7 @@ def show_all_students():
 
 @app.route('/data1', methods=['GET'])
 def show_all_users():
-    db = Database(database="project")
+    db = Database()
     result = db.execute("SELECT * FROM users")
     users = db.fetchall()
 
@@ -568,7 +568,7 @@ def upload_plant_photo():
     if not all([username, name, plant_stage]):
         return jsonify({'message': 'Missing user information or plant stage'}), 400
 
-    db = Database(database="project")
+    db = Database()
     try:
         query_select = "SELECT plant_photo, totalImagesYet FROM students WHERE username = %s AND name = %s"
         db.execute(query_select, (username, name))
@@ -673,7 +673,7 @@ def upload_plant_photo():
 
 @app.route('/register', methods=['POST'])
 def register():
-    db = Database(database="project")
+    db = Database() 
 
     try:
         # Get form fields from request.form - THIS REMAINS CORRECT FOR MULTIPART
@@ -761,7 +761,7 @@ def login():
     username = data.get('username')  # This is contact_number or user_id
     password = data.get('password')
     print(f'========LOGIN: Login attempt with username: {username}, password: {password}')
-    db = Database(database="project")
+    db = Database() 
 
     # 1. Try users table
     user_query = "SELECT * FROM users WHERE contact_number = %s AND password_hash = %s"
@@ -825,7 +825,7 @@ def login():
 
 @app.route('/get_photo', methods=['POST'])
 def get_photo(): 
-    db = Database(database="project")
+    db = Database() 
     # name = request.form.get('name')
     mobile = request.form.get('mobile')
 
