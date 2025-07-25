@@ -1,29 +1,29 @@
--- Create the database if it does not already exist
-CREATE DATABASE IF NOT EXISTS project;
+-- Create the database (optional, if not already created)
+CREATE DATABASE IF NOT EXISTS hgm;
+USE hgm;
 
--- Use the newly created or existing database
-USE project;
-
--- Create the users table
+-- Table: users
 CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100),
     contact_number VARCHAR(100),
     password_hash VARCHAR(255),
-    role ENUM('admin', 'aanganwadi_worker', 'health_worker'),
+    role ENUM('admin','aanganwadi_worker','health_worker'),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     aanganwaadi_id VARCHAR(100),
     gram VARCHAR(100),
     block VARCHAR(100),
     tehsil VARCHAR(100),
-    zila VARCHAR(100)
+    zila VARCHAR(100),
+    supervisor_name VARCHAR(100)
 );
 
--- Create the students table
+-- Table: students
 CREATE TABLE IF NOT EXISTS students (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(100),
     name VARCHAR(100),
+    mobile VARCHAR(100),
     password VARCHAR(100),
     guardian_name VARCHAR(100),
     father_name VARCHAR(100),
@@ -33,17 +33,10 @@ CREATE TABLE IF NOT EXISTS students (
     dob VARCHAR(100),
     weight FLOAT,
     height FLOAT,
-    health_status ENUM('healthy', 'malnourished', 'critical'),
+    health_status ENUM('healthy','malnourished','critical'),
     plant_photo LONGTEXT,
     pledge_photo LONGTEXT,
     address VARCHAR(255),
     totalImagesYet INT DEFAULT 0,
-    INDEX (username) -- Adding an index for faster lookups based on username
+    INDEX (username) -- Creates the MUL (Multiple) key you saw
 );
-
--- Optional: Add initial data for testing (e.g., an admin user)
--- INSERT INTO users (name, contact_number, password_hash, role, aanganwaadi_id, gram, block, tehsil, zila)
--- VALUES ('Admin User', 'admin_contact', 'your_hashed_admin_password', 'admin', NULL, NULL, NULL, NULL, NULL);
-
--- INSERT INTO students (username, name, password, guardian_name, father_name, mother_name, aanganwadi_code, age, dob, weight, height, health_status, plant_photo, pledge_photo, address, totalImagesYet)
--- VALUES ('test_user', 'Test Student', 'test_password', 'Test Guardian', 'Test Father', 'Test Mother', 123, 5, '2020-01-01', 15.5, 90.0, 'healthy', NULL, NULL, 'Some Village, Some District', 0);
